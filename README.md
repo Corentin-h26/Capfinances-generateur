@@ -1,1 +1,1 @@
-# Capfinances-g-n-rateur
+# Capfinances-generateur
