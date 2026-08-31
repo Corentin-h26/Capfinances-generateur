@@ -230,9 +230,9 @@ let rows = [ makeRow('Assurance vie'), makeRow('PER') ];
 let globalValue = '';
 
 let percentRows = [
-  {products:[{name:'PER', amount:'100€/mois'}], special:''},
-  {products:[{name:'PER', amount:'100€/mois'}, {name:'Assurance vie', amount:'7 800€ + 50€/mois'}], special:''},
-  {products:[], special:'IDEALE'}
+  {products:[{name:'Assurance vie', amount:'20 000€'}, {name:'PER', amount:'500€/mois'}], special:'', percent:'50'},
+  {products:[{name:'Assurance vie', amount:'30 000€'}, {name:'PER', amount:'600€/mois'}], special:'', percent:'60'},
+  {products:[], special:'Idéal', percent:'80'}
 ];
 
 let bvcRows = [
@@ -377,9 +377,12 @@ function renderPercent3Form(area){
     inner += `<button type="button" class="add-btn" style="margin-top:8px;padding:8px;font-size:12px;"
       onclick="percentRows[${i}].products.push({name:'',amount:''});renderForm();">+ Ajouter un produit à cette solution</button>`;
 
-    inner += `<label class="fl">Libellé spécial — remplace le détail ci-dessus si rempli (ex. IDEALE)</label>
-      <input type="text" value="${r.special||''}" placeholder="Ex. IDEALE"
-        oninput="percentRows[${i}].special=this.value">`;
+    inner += `<label class="fl">Libellé spécial — remplace le détail ci-dessus si rempli (ex. Idéal)</label>
+      <input type="text" value="${r.special||''}" placeholder="Ex. Idéal"
+        oninput="percentRows[${i}].special=this.value">
+      <label class="fl">% du dernier revenu atteint</label>
+      <input type="text" inputmode="decimal" value="${r.percent||''}" placeholder="Ex. 60"
+        oninput="percentRows[${i}].percent=this.value">`;
 
     block.innerHTML = inner;
     card.appendChild(block);
@@ -610,7 +613,7 @@ function drawPercent3PDF(doc, pageW){
   const marginX = 16;
   const width = pageW - marginX*2;
   let y = 34;
-  const col1W = width * 0.32;
+  const col1W = width * 0.62;
 
   // header row
   doc.setFillColor(...NAVY);
@@ -618,29 +621,24 @@ function drawPercent3PDF(doc, pageW){
   doc.setFont('helvetica','bold');
   doc.setFontSize(11);
   doc.setTextColor(...WHITE);
-  doc.text('Solutions', marginX+6, y+9);
-  doc.text('Montant', marginX+col1W+6, y+9);
+  doc.text('Solution', marginX+6, y+9);
+  doc.text('% Revenus', marginX+col1W+6, y+9);
   y += 18;
 
-  percentRows.forEach((r,i)=>{
-    const lineCount = r.special ? 1 : Math.max(1, r.products.length);
-    const rowH = 10 + lineCount*9;
+  const maxLines = Math.max(1, ...percentRows.map(r => r.special ? 1 : Math.max(1, r.products.length)));
+  const rowH = 10 + maxLines*9;
 
+  percentRows.forEach((r,i)=>{
     doc.setFillColor(...(i%2===0? LAV : WHITE));
     if(i%2!==0){ doc.setDrawColor(...LAV); doc.setLineWidth(0.4); doc.roundedRect(marginX, y, width, rowH, 2, 2, 'S'); }
     else { doc.roundedRect(marginX, y, width, rowH, 2, 2, 'F'); }
 
-    doc.setFont('helvetica','bold');
-    doc.setFontSize(12.5);
-    doc.setTextColor(...NAVY);
-    doc.text('Solution ' + (i+1), marginX+6, y+rowH/2+1.5, {maxWidth:col1W-10});
-
-    const vx = marginX+col1W+6;
+    // left: products or special label
     if(r.special){
       doc.setFont('helvetica','bold');
       doc.setFontSize(13);
-      doc.setTextColor(...BRONZE);
-      doc.text(r.special.toUpperCase(), vx, y+rowH/2+1.5);
+      doc.setTextColor(...NAVY);
+      doc.text(r.special, marginX+6, y+rowH/2+1.5, {maxWidth:col1W-10});
     } else {
       let ly = y + 9;
       (r.products.length ? r.products : [{name:'',amount:''}]).forEach(p=>{
@@ -648,10 +646,16 @@ function drawPercent3PDF(doc, pageW){
         doc.setFontSize(11);
         doc.setTextColor(...NAVY_DARK);
         const line = [p.name, p.amount].filter(Boolean).join(' : ') || '—';
-        doc.text(line, vx, ly, {maxWidth:width-col1W-14});
+        doc.text(line, marginX+6, ly, {maxWidth:col1W-10});
         ly += 9;
       });
     }
+
+    // right: % revenus
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(14);
+    doc.setTextColor(...BRONZE);
+    doc.text((r.percent||'—') + ' %', marginX+col1W+6, y+rowH/2+1.5);
 
     y += rowH + 6;
   });
