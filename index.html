@@ -230,9 +230,9 @@ let rows = [ makeRow('Assurance vie'), makeRow('PER') ];
 let globalValue = '';
 
 let percentRows = [
-  {desc:'Solution 1 : ', percent:'60'},
-  {desc:'Solution 2 : ', percent:'80'},
-  {desc:'Solution 3 : IDEALE', percent:'IDEALE'}
+  {products:[{name:'PER', amount:'100€/mois'}], special:''},
+  {products:[{name:'PER', amount:'100€/mois'}, {name:'Assurance vie', amount:'7 800€ + 50€/mois'}], special:''},
+  {products:[], special:'IDEALE'}
 ];
 
 let bvcRows = [
@@ -356,19 +356,32 @@ function removeRow(i){ rows.splice(i,1); renderForm(); }
 function renderPercent3Form(area){
   const card = document.createElement('div');
   card.className = 'card';
-  let html = "<h2>3 solutions (% du dernier revenu d'activité atteint)</h2>";
-  card.innerHTML = html;
+  card.innerHTML = "<h2>3 solutions</h2>";
 
   percentRows.forEach((r,i)=>{
     const block = document.createElement('div');
     block.className = 'row-block';
-    block.innerHTML = `
-      <label class="fl">Description de la solution ${i+1}</label>
-      <input type="text" value="${r.desc}" placeholder="Ex. 3000€ + 50€/mois"
-        oninput="percentRows[${i}].desc=this.value">
-      <label class="fl">% du dernier revenu atteint (ou "IDEALE")</label>
-      <input type="text" value="${r.percent}" placeholder="Ex. 60 ou IDEALE"
-        oninput="percentRows[${i}].percent=this.value">`;
+    let inner = `<div class="row-name"><label class="fl">Solution ${i+1}</label></div>`;
+
+    r.products.forEach((p,pi)=>{
+      inner += `<div class="field-grid">
+        <div><input type="text" value="${p.name}" placeholder="Ex. PER"
+          oninput="percentRows[${i}].products[${pi}].name=this.value">
+          <div class="unit-hint">Produit</div></div>
+        <div><input type="text" value="${p.amount}" placeholder="Ex. 100€/mois"
+          oninput="percentRows[${i}].products[${pi}].amount=this.value">
+          <div class="unit-hint">Montant</div></div>
+      </div>`;
+    });
+
+    inner += `<button type="button" class="add-btn" style="margin-top:8px;padding:8px;font-size:12px;"
+      onclick="percentRows[${i}].products.push({name:'',amount:''});renderForm();">+ Ajouter un produit à cette solution</button>`;
+
+    inner += `<label class="fl">Libellé spécial — remplace le détail ci-dessus si rempli (ex. IDEALE)</label>
+      <input type="text" value="${r.special||''}" placeholder="Ex. IDEALE"
+        oninput="percentRows[${i}].special=this.value">`;
+
+    block.innerHTML = inner;
     card.appendChild(block);
   });
 
@@ -597,24 +610,48 @@ function drawPercent3PDF(doc, pageW){
   const marginX = 16;
   const width = pageW - marginX*2;
   let y = 34;
+  const col1W = width * 0.32;
+
+  // header row
+  doc.setFillColor(...NAVY);
+  doc.roundedRect(marginX, y, width, 14, 2, 2, 'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...WHITE);
+  doc.text('Solutions', marginX+6, y+9);
+  doc.text('Montant', marginX+col1W+6, y+9);
+  y += 18;
 
   percentRows.forEach((r,i)=>{
-    const rowH = 20;
+    const lineCount = r.special ? 1 : Math.max(1, r.products.length);
+    const rowH = 10 + lineCount*9;
+
     doc.setFillColor(...(i%2===0? LAV : WHITE));
     if(i%2!==0){ doc.setDrawColor(...LAV); doc.setLineWidth(0.4); doc.roundedRect(marginX, y, width, rowH, 2, 2, 'S'); }
     else { doc.roundedRect(marginX, y, width, rowH, 2, 2, 'F'); }
 
     doc.setFont('helvetica','bold');
-    doc.setFontSize(12);
+    doc.setFontSize(12.5);
     doc.setTextColor(...NAVY);
-    doc.text(r.desc || ('Solution ' + (i+1)), marginX+6, y+12, {maxWidth:width-55});
+    doc.text('Solution ' + (i+1), marginX+6, y+rowH/2+1.5, {maxWidth:col1W-10});
 
-    const isIdeale = String(r.percent).toUpperCase().includes('IDEAL');
-    doc.setFont('helvetica','bold');
-    doc.setFontSize(isIdeale ? 12 : 15);
-    doc.setTextColor(...(isIdeale ? BRONZE : NAVY));
-    const txt = isIdeale ? 'IDÉALE' : (r.percent + ' %');
-    doc.text(txt, marginX+width-6, y+12, {align:'right'});
+    const vx = marginX+col1W+6;
+    if(r.special){
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(13);
+      doc.setTextColor(...BRONZE);
+      doc.text(r.special.toUpperCase(), vx, y+rowH/2+1.5);
+    } else {
+      let ly = y + 9;
+      (r.products.length ? r.products : [{name:'',amount:''}]).forEach(p=>{
+        doc.setFont('helvetica','italic');
+        doc.setFontSize(11);
+        doc.setTextColor(...NAVY_DARK);
+        const line = [p.name, p.amount].filter(Boolean).join(' : ') || '—';
+        doc.text(line, vx, ly, {maxWidth:width-col1W-14});
+        ly += 9;
+      });
+    }
 
     y += rowH + 6;
   });
