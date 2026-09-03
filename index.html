@@ -364,13 +364,15 @@ function renderPercent3Form(area){
     let inner = `<div class="row-name"><label class="fl">Solution ${i+1}</label></div>`;
 
     r.products.forEach((p,pi)=>{
-      inner += `<div class="field-grid">
+      inner += `<div class="field-grid" style="align-items:end;grid-template-columns:1fr 1fr auto;">
         <div><input type="text" value="${p.name}" placeholder="Ex. PER"
           oninput="percentRows[${i}].products[${pi}].name=this.value">
           <div class="unit-hint">Produit</div></div>
         <div><input type="text" value="${p.amount}" placeholder="Ex. 100€/mois"
           oninput="percentRows[${i}].products[${pi}].amount=this.value">
           <div class="unit-hint">Montant</div></div>
+        <div><button type="button" onclick="removePercentProduct(${i},${pi})"
+          style="border:1.5px solid var(--line);background:#fff;color:#b23;border-radius:9px;padding:10px 12px;font-weight:700;cursor:pointer;">✕</button></div>
       </div>`;
     });
 
@@ -390,6 +392,8 @@ function renderPercent3Form(area){
 
   area.appendChild(card);
 }
+
+function removePercentProduct(i, pi){ percentRows[i].products.splice(pi,1); renderForm(); }
 
 function renderBvcForm(area){
   const card = document.createElement('div');
